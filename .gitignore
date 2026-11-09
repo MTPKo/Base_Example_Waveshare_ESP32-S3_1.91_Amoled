@@ -13,6 +13,7 @@
 *.bak
 *.tmp
 
+
 # Log files
 *.log
 
@@ -40,6 +41,12 @@ sdkconfig
 managed_components/
 # If ESP-IDF tools are installed/referenced locally to the project
 .espressif/
+
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio
 
 # CMake generated files
 CMakeCache.txt
