@@ -47,6 +47,7 @@ managed_components/
 .clang_complete
 .gcc-flags.json
 .pio
+.pio/
 
 # CMake generated files
 CMakeCache.txt
