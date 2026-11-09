@@ -1,0 +1,59 @@
+{
+  "build": {
+    "arduino": {
+      "ldscript": "esp32s3_out.ld",
+      "memory_type": "qio_opi",
+      "partitions": "16MB.csv",
+      "variant": "esp32s3"
+    },
+    "core": "esp32",
+    "cpu": "xtensa-32bit",
+    "f_cpu": "240M",
+    "f_flash": "80000000L",
+    "flash_mode": "qio",
+    "mcu": "esp32s3",
+    "variant": "esp32s3",
+    "extra_partitions": []
+  },
+  "connectivity": [
+    "wifi",
+    "bluetooth"
+  ],
+  "debug": {
+    "default_port": "cmsis-dap",
+    "openocd_target": "esp32s3.cfg",
+    "supported_tools": [
+      "cmsis-dap",
+      "esp-builtin",
+      "esp-prog",
+      "jlink"
+    ]
+  },
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "name": "Waveshare ESP32-S3-Touch-AMOLED-1.91-M (16MB Flash, 8MB PSRAM)",
+  "upload": {
+    "flash_size": "16MB",
+    "max_download_size": 16777216,
+    "max_ram_size": 327680,
+    "max_upload_size": 16777216,
+    "protocol": "esptool",
+    "protocols": [
+      "esptool",
+      "cmsis-dap",
+      "esp-builtin",
+      "esp-prog",
+      "esp-bridge",
+      "jlink",
+      "iot-bus-jtag",
+      "olimex-arm-usb-ocd",
+      "olimex-arm-usb-ocd-h",
+      "olimex-arm-usb-tiny-h",
+      "tumpa"
+    ]
+  },
+  "url": "https://docs.waveshare.com/ESP32-S3-AMOLED-1.91",
+  "vendor": "Waveshare"
+}

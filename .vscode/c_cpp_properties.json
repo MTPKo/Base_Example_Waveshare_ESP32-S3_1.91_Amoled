@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/tom/.config/Code/User/globalStorage/themastercoder007.lvgl-live-preview/lvgl/9.5.0",
+                "/home/tom/.config/Code/User/globalStorage/themastercoder007.lvgl-live-preview/lvgl/9.5.0/src",
+                "/home/tom/.config/Code/User/globalStorage/themastercoder007.lvgl-live-preview/emsdk/emsdk-3.1.50/upstream/emscripten/cache/sysroot/include",
+                "/home/tom/.config/Code/User/globalStorage/themastercoder007.lvgl-live-preview/emsdk/emsdk-3.1.50/upstream/emscripten/cache/sysroot/include/c++/v1"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerPath": "/home/tom/.config/Code/User/globalStorage/themastercoder007.lvgl-live-preview/emsdk/emsdk-3.1.50/upstream/emscripten/emcc"
+        }
+    ],
+    "version": 4
+}
