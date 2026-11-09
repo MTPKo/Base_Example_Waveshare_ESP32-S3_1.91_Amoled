@@ -91,4 +91,10 @@
 #define LV_USE_SYSMON 0
 #define LV_USE_PERF_MONITOR 0
 
+/*====================
+   GESTURE RECOGNITION
+ *====================*/
+#define LV_USE_FLOAT 1
+#define LV_USE_GESTURE_RECOGNITION 1
+
 #endif /* LV_CONF_H */
