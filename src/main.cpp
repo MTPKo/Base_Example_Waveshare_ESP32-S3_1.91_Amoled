@@ -109,6 +109,8 @@ void setup() {
 
 enum power_state_t {
   STATE_AWAKE,
+  STATE_DIMMING_TO_50,
+  STATE_DIMMED_50,
   STATE_FADING_OUT,
   STATE_LIGHT_SLEEP,
   STATE_FADING_IN
@@ -118,6 +120,11 @@ static power_state_t power_state = STATE_AWAKE;
 static uint8_t cur_brightness = TARGET_BRIGHTNESS;
 static uint32_t last_brightness_update = 0;
 static uint32_t last_activity_time = 0;
+
+// Power management constants
+#define DIM_TO_50_TIMEOUT_MS 10000       // 10s idle before dimming to 50%
+#define SLEEP_TIMEOUT_MS 20000           // 20s idle before entering light sleep
+#define DIM_50_BRIGHTNESS 80           // 50% of TARGET_BRIGHTNESS (200)
 
 // FT3168 IRQ pin for light sleep wakeup
 #define FT3168_IRQ_PIN 41
@@ -139,6 +146,7 @@ void enter_light_sleep() {
 
   while (power_state == STATE_LIGHT_SLEEP) {
     esp_light_sleep_start();
+    // Reinitialize Serial/USB CDC after light sleep
 
     // Light sleep auto-releases GPIO hold, but be explicit
     gpio_hold_dis((gpio_num_t)FT3168_IRQ_PIN);
@@ -149,6 +157,8 @@ void enter_light_sleep() {
 
     if (touch_face.isTouching()) {
 
+      Serial.begin(115200);
+      delay(50); // Allow USB CDC enumeration to complete
       Serial.println("Touch activity detected, waking display!");
 
       // Wake display FIRST — before Serial to minimize delay
@@ -192,6 +202,11 @@ void handle_power_save() {
       // Just came back from light sleep, start fading in
       power_state = STATE_FADING_IN;
       last_brightness_update = now;
+    } else if (power_state == STATE_DIMMED_50 || power_state == STATE_DIMMING_TO_50) {
+      // Woke from dimmed state, start fading in
+      Serial.println("Activity during dimmed state, fading in...");
+      power_state = STATE_FADING_IN;
+      last_brightness_update = now;
     }
   }
 
@@ -199,10 +214,36 @@ void handle_power_save() {
 
   switch (power_state) {
   case STATE_AWAKE:
-    if (idle_time > IDLE_TIMEOUT_MS) {
+    if (idle_time > DIM_TO_50_TIMEOUT_MS) {
+      power_state = STATE_DIMMING_TO_50;
+      last_brightness_update = now;
+      Serial.println("Idle 10s, dimming to 50%...");
+    }
+    break;
+
+  case STATE_DIMMING_TO_50:
+    // Smoothly dim from current brightness to 50%
+    if (now - last_brightness_update > FADE_OUT_INTERVAL_MS) {
+      if (cur_brightness > DIM_50_BRIGHTNESS) {
+        int next_b = (int)cur_brightness - FADE_OUT_STEP;
+        cur_brightness = (next_b < DIM_50_BRIGHTNESS) ? DIM_50_BRIGHTNESS : next_b;
+        lcd.setBrightness(cur_brightness);
+        delay(2); // Let display stabilize after brightness change
+      } else {
+        power_state = STATE_DIMMED_50;
+        last_brightness_update = now;
+        Serial.println("Display dimmed to 50%");
+      }
+      last_brightness_update = now;
+    }
+    break;
+
+  case STATE_DIMMED_50:
+    // If idle for another 10s (20s total), fade to full off and enter sleep
+    if (idle_time > SLEEP_TIMEOUT_MS) {
       power_state = STATE_FADING_OUT;
       last_brightness_update = now;
-      Serial.println("Idle timeout, fading out...");
+      Serial.println("Idle 20s, fading out to sleep...");
     }
     break;
 
