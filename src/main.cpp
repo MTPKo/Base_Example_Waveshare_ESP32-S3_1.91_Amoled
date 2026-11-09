@@ -20,10 +20,11 @@
 // Power management settings
 #define IDLE_TIMEOUT_MS 10000 // 10 seconds
 #define FADE_OUT_STEP 8       // Brightness reduction per step
-#define FADE_IN_STEP 12       // Brightness increase per step
+#define FADE_IN_STEP 40       // Brightness increase per step (faster wake response)
 #define FADE_OUT_INTERVAL_MS 20
 #define FADE_IN_INTERVAL_MS 10
 #define TARGET_BRIGHTNESS 200
+
 
 
 
@@ -118,58 +119,53 @@ static uint8_t cur_brightness = TARGET_BRIGHTNESS;
 static uint32_t last_brightness_update = 0;
 static uint32_t last_activity_time = 0;
 
+// FT3168 IRQ pin for light sleep wakeup
+#define FT3168_IRQ_PIN 41
+
 void enter_light_sleep() {
+
   Serial.println("Entering light sleep mode...");
 
   // Put display in sleep mode
   lcd.setSleep(true);
 
-  // Light sleep with polling: sleep in short bursts and check for activity
-  // This is more reliable than GPIO interrupt for I2C devices
+  // Configure FT3168 IRQ pin (GPIO 41) for light sleep wakeup
+  // FT3168 pulls IRQ line LOW when touch occurs
+  gpio_set_direction((gpio_num_t)FT3168_IRQ_PIN, GPIO_MODE_INPUT);
+  gpio_pullup_dis((gpio_num_t)FT3168_IRQ_PIN);       // Disable pullup (FT3168 drives the line)
+  gpio_hold_en((gpio_num_t)FT3168_IRQ_PIN);          // Hold pin state during light sleep
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)FT3168_IRQ_PIN, 0); // Wake on LOW
+  esp_sleep_enable_timer_wakeup(10000);             // 100ms timer fallback
+
   while (power_state == STATE_LIGHT_SLEEP) {
-    // Sleep for 100ms at a time
-    esp_sleep_enable_timer_wakeup(100 * 1000ULL); // 100ms in microseconds
     esp_light_sleep_start();
 
-    // Check for touch activity after each wake
-    touch_face.update();
+    // Light sleep auto-releases GPIO hold, but be explicit
+    gpio_hold_dis((gpio_num_t)FT3168_IRQ_PIN);
 
-    // Check for touch
+    // Reinitialize I2C — light sleep stops I2C peripheral clock
+    Wire.begin(I2C_SDA, I2C_SCL);
+    touch_face.update(); // Clear stale touch data
+
     if (touch_face.isTouching()) {
 
       Serial.println("Touch activity detected, waking display!");
 
-      // Wake display FIRST
+      // Wake display FIRST — before Serial to minimize delay
       lcd.setSleep(false);
-      Serial.println("Display sleep disabled");
+      lcd.setBrightness(0);
 
-      // Reinitialize I2C to ensure reliability
-      Wire.begin(I2C_SDA, I2C_SCL);
-
-      // Reinitialize Serial to restore USB CDC communication
-      Serial.begin(115200);
-      delay(50); // Small delay for USB re-enumeration/sync
-
-      // Clear any pending touch data
-      touch_face.update();
-
-      // Set brightness to 0 to start fade-in from black
-      cur_brightness = 0;
-      lcd.setBrightness(cur_brightness);
-      Serial.println("Brightness reset to 0 for fade-in");
-
-      // Force full screen refresh
-      lv_obj_invalidate(lv_screen_active());
-      Serial.println("Screen invalidated");
-
-      // Set activity flag and update timestamp
+      // Set activity flag and timestamp immediately
       g_activity_detected = true;
       last_activity_time = millis();
       last_brightness_update = millis();
 
       // Change to fading in state
       power_state = STATE_FADING_IN;
-      Serial.println("State changed to FADING_IN");
+
+      // Force LVGL redraw IMMEDIATELY — don't wait for next timer handler cycle
+      // This reduces the UI response latency by ~10-20ms
+      lv_timer_handler();
 
       break; // Exit sleep loop
     }

@@ -11,6 +11,7 @@
 #define FT3168_REG_TOUCH 0x02
 #define FT3168_REG_XY    0x03
 
+
 // Display resolution for clamping
 #define TOUCH_MAX_X 536
 #define TOUCH_MAX_Y 240
@@ -20,6 +21,7 @@
  * Adapted from Waveshare ESP-IDF example (touch_bsp.c)
  * Replaces the trackball class for ESP32-S3-Touch-AMOLED-1.91-M
  */
+
 class Touch_face {
 public:
   Touch_face() : _wire(nullptr), _addr(TOUCH_I2C_ADDR) {}
@@ -126,8 +128,7 @@ public:
   bool clicked() const { return false; }
   bool isPressed() const { return _touchActive; }
 
-
-private:
+  private:
   TwoWire *_wire;
   uint8_t _addr;
   int16_t _lastX = 0;
