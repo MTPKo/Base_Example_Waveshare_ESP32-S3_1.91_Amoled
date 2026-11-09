@@ -19,9 +19,58 @@ static uint32_t colors[] = {
 static const char *labels[] = {"Red",  "Green", "Blue",  "Yellow", "Off",
                                "Cyan", "Pink",  "White", "Orange"};
 
+// Touch indicator objects (up to 5 points)
+static lv_obj_t *touch_indicators[TOUCH_MAX_POINTS];
+static bool indicator_visible[TOUCH_MAX_POINTS];
+
+/**
+ * Update touch indicator dots based on current touch data.
+ * Should be called from loop() after touch_face.update().
+ */
+void ui_update_touch_indicators() {
+  const uint8_t point_count = touch_face.getPointCount();
+  
+  // Update visible indicators
+  for (uint8_t i = 0; i < point_count && i < TOUCH_MAX_POINTS; i++) {
+    touch_point_t tp = touch_face.getPoint(i);
+    lv_obj_t *ind = touch_indicators[i];
+    
+    if (!indicator_visible[i]) {
+      // Show indicator
+      lv_obj_set_pos(ind, tp.x - 10, tp.y - 10);  // Center the 20px circle
+      lv_obj_set_size(ind, 20, 20);
+      lv_obj_clear_flag(ind, LV_OBJ_FLAG_HIDDEN);
+      indicator_visible[i] = true;
+    } else {
+      // Move indicator
+      lv_obj_set_pos(ind, tp.x - 10, tp.y - 10);
+    }
+  }
+  
+  // Hide indicators for points that are no longer active
+  for (uint8_t i = point_count; i < TOUCH_MAX_POINTS; i++) {
+    if (indicator_visible[i]) {
+      lv_obj_add_flag(touch_indicators[i], LV_OBJ_FLAG_HIDDEN);
+      indicator_visible[i] = false;
+    }
+  }
+}
+
 void ui_init() {
   lv_obj_t *scr = lv_screen_active();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+
+  // Create touch indicator dots (initially hidden)
+  for (int i = 0; i < TOUCH_MAX_POINTS; i++) {
+    touch_indicators[i] = lv_obj_create(scr);
+    lv_obj_set_size(touch_indicators[i], 60, 60);
+    lv_obj_set_pos(touch_indicators[i], -100, -100);  // Off-screen initially
+    lv_obj_set_style_bg_color(touch_indicators[i], lv_color_white(), 0);
+    lv_obj_set_style_radius(touch_indicators[i], LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_opa(touch_indicators[i], LV_OPA_70, 0);  // Semi-transparent
+    lv_obj_add_flag(touch_indicators[i], LV_OBJ_FLAG_HIDDEN);
+    indicator_visible[i] = false;
+  }
 
   // Create a container for the grid
   lv_obj_t *cont = lv_obj_create(scr);

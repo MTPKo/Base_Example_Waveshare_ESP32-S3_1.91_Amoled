@@ -294,6 +294,9 @@ void loop() {
   // Update touch ONCE per loop iteration
   touch_face.update();
 
+  // Update visual touch indicator dots
+  ui_update_touch_indicators();
+
   // Handle LVGL timers (which will call keypad_read)
   lv_timer_handler();
 

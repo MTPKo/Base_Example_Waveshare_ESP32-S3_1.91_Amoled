@@ -9,8 +9,10 @@
 // FT3168 register addresses
 #define FT3168_REG_MODE  0x00
 #define FT3168_REG_TOUCH 0x02
-#define FT3168_REG_XY    0x03
+#define FT3168_REG_TOUCH1_XH 0x03
 
+// Bytes per touch point in register map
+#define FT3168_BYTES_PER_POINT 6
 
 // Display resolution for clamping
 #define TOUCH_MAX_X 536
@@ -32,6 +34,17 @@ typedef struct {
 /**
  * FT3168 capacitive touch controller driver
  * Supports up to 5 simultaneous touch points
+ *
+ * Register map (Working Mode):
+ * Point 0 (TOUCH1): 0x03(XH) 0x04(XL) 0x05(YH) 0x06(YL) 0x07(Weight) 0x08(Misc)
+ * Point 1 (TOUCH2): 0x09(XH) 0x0A(XL) 0x0B(YH) 0x0C(YL) 0x0D(Weight) 0x0E(Misc)
+ * Point 2 (TOUCH3): 0x0F(XH) 0x10(XL) 0x11(YH) 0x12(YL) 0x13(Weight) 0x14(Misc)
+ * etc.
+ *
+ * FT3168 native coordinates are portrait (240x536, Y=0 at bottom).
+ * Display is landscape (536x240). Rotation:
+ *   screenX = portraitY
+ *   screenY = (239 - portraitX)
  */
 
 class Touch_face {
@@ -73,17 +86,14 @@ public:
   }
 
   /**
-   * Read touch coordinates — uses ORIGINAL proven I2C read pattern
-   * This is the EXACT same code as the original working implementation.
-   * Also populates _points[0] for multitouch support.
-   * @param x Pointer to store X coordinate
-   * @param y Pointer to store Y coordinate
-   * @return true if valid touch data was read
+   * Read touch coordinates for ALL active touch points.
+  *
+   * @param x Pointer to store primary X coordinate
+   * @param y Pointer to store primary Y coordinate
+   * @return true if at least one valid touch point was read
    */
   bool getTouch(int16_t *x, int16_t *y) {
-    uint8_t buf[4];
-
-    // Read touch status first (register 0x02)
+    // Read touch status (number of active touch points) from register 0x02
     uint8_t status;
     _wire->beginTransmission(_addr);
     _wire->write(FT3168_REG_TOUCH);
@@ -95,7 +105,7 @@ public:
     }
     status = _wire->read();
 
-    // status bits 3:0 = number of touch points
+    // bits 3:0 = number of touch points (0-5)
     _point_count = status & 0x0F;
     if (_point_count == 0 || _point_count > TOUCH_MAX_POINTS) {
       _point_count = 0;
@@ -103,54 +113,56 @@ public:
       return false;
     }
 
-    // Read 4 bytes of touch data from register 0x03
-    // Original code only reads 4 bytes (first touch point)
-    // We read all 4 bytes and store in _points[0]
+    // Read ALL touch point data
+    // Each point is 6 bytes in the register map
+    uint8_t totalBytes = _point_count * FT3168_BYTES_PER_POINT;
+    uint8_t buf[TOUCH_MAX_POINTS * FT3168_BYTES_PER_POINT];  // Max 30 bytes
+
     _wire->beginTransmission(_addr);
-    _wire->write(FT3168_REG_XY);
-    _wire->endTransmission(false);
-    if (_wire->requestFrom(_addr, (uint8_t)4) != 4) {
+    _wire->write(FT3168_REG_TOUCH1_XH);
+    _wire->endTransmission(false);  // Restart, don't stop
+    if (_wire->requestFrom(_addr, (uint8_t)totalBytes) != totalBytes) {
       _point_count = 0;
       clearAllPoints();
       return false;
     }
-    for (int i = 0; i < 4; i++) buf[i] = _wire->read();
+    for (int i = 0; i < totalBytes; i++) {
+      buf[i] = _wire->read();
+    }
 
-    // Decode coordinates (EXACT same as original code)
-    int16_t rawY = (((uint16_t)(buf[0] & 0x0F)) << 8) | buf[1];
-    int16_t rawX = ((((uint16_t)(buf[2] & 0x0F)) << 8) | buf[3]);
-    
-    // Store in _points[0]
-    _points[0].active = true;
-    _points[0].id = 0;
-    _points[0].y = rawY;
-    _points[0].x = -(rawX - 536);
-    
-    // Clamp coordinates
-    if (_points[0].x < 0) _points[0].x = 0;
-    if (_points[0].x > TOUCH_MAX_X) _points[0].x = TOUCH_MAX_X;
-    if (_points[0].y < 0) _points[0].y = 0;
-    if (_points[0].y > TOUCH_MAX_Y) _points[0].y = TOUCH_MAX_Y;
+    // Decode each touch point
+    for (uint8_t i = 0; i < _point_count; i++) {
+      // Each point is 6 bytes: [XH, XL, YH, YL, Weight, Misc]
+      int base = i * FT3168_BYTES_PER_POINT;
+      _points[i].active = true;
+      _points[i].id = i;
 
-    // Output via pointers (backward compatibility)
+      // Decode X: (XH & 0x0F) << 8 | XL
+      // XH register: bit7=Event Flag, bits6-4=reserved, bits3-0=X[11:8]
+      int16_t rawX = (((uint16_t)(buf[base + 0] & 0x0F)) << 8) | buf[base + 1];
+
+      // Decode Y: (YH & 0x0F) << 8 | YL
+      // YH register: bits7-4=Y[11:8], bits3-0=Touch ID
+      int16_t rawY = (((uint16_t)(buf[base + 2] & 0x0F)) << 8) | buf[base + 3];
+
+      // Rotate coordinates: FT3168 reports portrait (240x536), display is landscape (536x240)
+      // screenX = portraitY, screenY = (239 - portraitX)
+      _points[i].x = (TOUCH_MAX_X - 1) - rawY;
+      _points[i].y =  rawX;
+
+
+    }
+
+    // Output primary coordinates via pointers
     *x = _points[0].x;
     *y = _points[0].y;
 
     _lastX = _points[0].x;
     _lastY = _points[0].y;
 
-    // Clear other points
-    for (int i = 1; i < TOUCH_MAX_POINTS; i++) {
-      _points[i].active = false;
-    }
-
     return true;
   }
 
-  /**
-   * Update function — kept for API compatibility
-   * Returns true if touch is active
-   */
   bool update() {
     int16_t x, y;
     _touchActive = getTouch(&x, &y);
@@ -169,6 +181,7 @@ public:
   bool isTouching() const { return _touchActive; }
 
   // ========== Multitouch Methods ==========
+  // more than 2 still buggy
 
   /**
    * Get number of active touch points
