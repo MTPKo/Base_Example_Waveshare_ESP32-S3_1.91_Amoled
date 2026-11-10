@@ -156,6 +156,7 @@ public:
     // Output primary coordinates via pointers
     *x = _points[0].x;
     *y = _points[0].y;
+    
 
     _lastX = _points[0].x;
     _lastY = _points[0].y;

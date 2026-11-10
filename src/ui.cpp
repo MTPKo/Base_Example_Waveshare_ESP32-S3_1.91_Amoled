@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "qspi_display.h"
 #include "touch_face.h"
+#include "wifi_ui.h"
 #include <Arduino.h>
 #include <lvgl.h>
 
@@ -160,4 +161,27 @@ void ui_init() {
   } else {
     Serial.println("WARNING: Could not find first button to focus!");
   }
+
+  // WiFi button at the bottom
+  lv_obj_t* wifiBtn = lv_button_create(scr);
+  lv_obj_set_pos(wifiBtn, LCD_WIDTH / 2 - 60, LCD_HEIGHT - 55);
+  lv_obj_set_size(wifiBtn, 120, 40);
+  lv_obj_set_style_bg_color(wifiBtn, lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_obj_set_style_radius(wifiBtn, 8, 0);
+  lv_obj_t* wifiLabel = lv_label_create(wifiBtn);
+  lv_label_set_text(wifiLabel, "WiFi");
+  lv_obj_set_style_text_color(wifiLabel, lv_color_white(), 0);
+  lv_obj_center(wifiLabel);
+  lv_obj_add_event_cb(wifiBtn, [](lv_event_t* e) {
+      (void)e;
+      lv_obj_t* scr = lv_screen_active();
+      wifiUI.init(scr);
+      wifiUI.show();
+  }, LV_EVENT_CLICKED, nullptr);
+}
+
+void ui_show_wifi() {
+    lv_obj_t* scr = lv_screen_active();
+    wifiUI.init(scr);
+    wifiUI.show();
 }

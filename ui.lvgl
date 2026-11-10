@@ -1,0 +1,44 @@
+{
+  "format": "easylvgl",
+  "version": 1,
+  "settings": {
+    "name": "ui",
+    "outputDir": "src",
+    "lvglVersion": "9",
+    "target": "esp32-arduino",
+    "lvglInclude": "lvgl.h",
+    "display": {
+      "width": 536,
+      "height": 240,
+      "shape": "rect",
+      "colorDepth": 16
+    },
+    "theme": {
+      "dark": false,
+      "primary": "#2196F3",
+      "secondary": "#F44336",
+      "font": 14
+    },
+    "pollMs": 100,
+    "buildCommand": "vscode:platformio-ide.build",
+    "uploadCommand": "vscode:platformio-ide.upload",
+    "generateOnSave": false,
+    "cmake": "none",
+    "customFonts": []
+  },
+  "screens": [
+    {
+      "id": "s1",
+      "name": "Main",
+      "style": {},
+      "children": []
+    }
+  ],
+  "userWidgets": [],
+  "variables": [],
+  "images": [],
+  "flow": {
+    "nodes": [],
+    "edges": []
+  }
+}

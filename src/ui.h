@@ -13,3 +13,8 @@ void ui_init();
  * Should be called from loop() after touch_face.update()
  */
 void ui_update_touch_indicators();
+
+/**
+ * Show the WiFi UI overlay
+ */
+void ui_show_wifi();

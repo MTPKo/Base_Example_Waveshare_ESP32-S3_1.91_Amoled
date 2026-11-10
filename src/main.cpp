@@ -2,6 +2,8 @@
 #include "qspi_display.h"
 #include "touch_face.h"
 #include "ui.h"
+#include "wifi_manager.h"
+#include "wifi_ui.h"
 #include <Arduino.h>
 #include <Wire.h>
 #include <driver/gpio.h>
@@ -46,6 +48,10 @@ void setup() {
   Serial.begin(115200);
   delay(2000); // Wait for Serial Monitor to connect
   Serial.println("Starting...");
+
+  // Init WiFi Manager (after Serial, before display init)
+  wifiManager.begin();
+  Serial.println("WiFi Manager initialized");
 
   // Init I2C for touch controller
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -299,6 +305,9 @@ void loop() {
 
   // Handle LVGL timers (which will call keypad_read)
   lv_timer_handler();
+
+  // Handle WiFi periodic tasks
+  wifiUI.handle();
 
   // Handle power management
   handle_power_save();
